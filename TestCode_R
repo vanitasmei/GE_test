@@ -1,0 +1,59 @@
+### HOUSE PRICE PREDICTION ###
+rm(list = ls())
+house <- read.csv("~/Desktop/house_price.csv")
+library(psych)
+library(bestglm)
+
+## Summary statistics of variables
+pairs.panels(house)
+summary(house)
+
+## Data transformation
+ln_var1 <- log(house$var1 + 1)
+ln_var2 <- log(house$var2)
+ln_var3 <- log(house$var3)
+ln_price <- log(house$house_price)
+house.norm <- data.frame(ln_var1, ln_var2, ln_var3, house$var4, ln_price)
+
+## Summary stats of transformed data
+pairs.panels(house.norm)
+
+## Initial linear model with all predivtors
+linmod <- lm(ln_price ~ ., data = house.norm)
+summary(linmod)
+
+## Find the best model with best subset selection
+best.subset <- bestglm(house.norm, IC = "AIC")
+AIC <- best.subset$Subsets[, "AIC"]
+coef <- best.subset$BestModel$coefficients
+test <- data.frame(ln_var1 = log(27.5), ln_Var2 = log(34), ln_var3 = log(1650), house.var4 = 3)
+
+## Predicting house price and its prediction interval
+Y_hat <- exp(predict(best.subset$BestModel, newdata = test, interval="predict"))
+
+### MOVIE RECOMMENDATION ###
+rm(list = ls())
+library(class)
+movie.rate <- read.csv("~/Desktop/movie_users_rate.csv")
+movie.index <- movie.rate[ ,1]
+movie.rate <- movie.rate[ , 2:dim(movie.rate)[2]]
+target <- c(1, 7, 12, 54, 64, 66, 69, 98, 176, 226, 355)
+
+## Imputation: assign average rating for missing values
+movie.rate[movie.rate == 0] <- 3
+
+## Separate training data: use train1 to find similar users,
+##   and train2 to make prediction.
+train1 <- as.data.frame(t(movie.rate[target, ]))
+train2 <- as.data.frame(t(movie.rate[-target, ]))
+movie.index2 <- movie.index[-target]
+test1 <- c(4, 3, 5, 4, 5, 3, 5, 2, 4, 5, 5)
+
+## Predicting ratings for each movie
+classify <- function(x) {
+  knn(train = train1, test = test1, cl = x, k = 50)
+}
+test2 <- as.data.frame(apply(train2, 2, FUN = classify))
+
+## Give recommendations based on prediction
+recommend <- as.data.frame(movie.index[which(test2=="5")])
